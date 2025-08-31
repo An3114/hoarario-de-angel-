@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Horario Estudio Diario - Tecnología & Diplomado</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #4f46e5 0%, #6b21a8 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #e0e7ff;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .card {
+      background: rgba(55, 48, 163, 0.85);
+      border-radius: 1rem;
+      box-shadow: 0 0 15px rgba(191, 90, 242, 0.6);
+      padding: 1.5rem;
+      margin: 1rem 0;
+      border: 2px solid #a78bfa;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Robot figure style - simple abstract shape in a corner */
+    .robot-figure {
+      position: absolute;
+      bottom: -10px;
+      right: -10px;
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle at center, #a78bfa 30%, transparent 80%);
+      border-radius: 40% 40% 60% 60% / 50% 40% 60% 50%;
+      filter: drop-shadow(0 0 5px #6b21a8);
+      z-index: 5;
+      opacity: 0.3;
+      pointer-events: none;
+      transform: rotate(-15deg);
+    }
+    .robot-eye {
+      position: absolute;
+      top: 40px;
+      left: 28px;
+      width: 15px;
+      height: 15px;
+      background: #e0e7ff;
+      border-radius: 50%;
+      box-shadow: 25px 0 #e0e7ff;
+      filter: drop-shadow(0 0 3px #c7d2fe);
+      animation: blink 5s infinite;
+    }
+    @keyframes blink {
+      0%, 97%, 100% { height: 15px; }
+      98%, 99% { height: 3px; }
+    }
+    h1 {
+      font-weight: 800;
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
+      text-align: center;
+      text-shadow:
+        1px 1px 4px #7c3aed,
+        -1px -1px 4px #4c1d95;
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.15rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      color: #c4b5fd;
+    }
+    .btn-primary {
+      cursor: pointer;
+      background: #7c3aed;
+      color: #e0e7ff;
+      font-weight: 700;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      box-shadow: 0 0 12px #c4b5fdaa;
+      border: none;
+      transition: background 0.3s ease;
+      user-select: none;
+    }
+    .btn-primary:hover, .btn-primary:focus {
+      background: #6b21a8;
+      outline: none;
+      box-shadow: 0 0 15px 2px #d8b4fe;
+    }
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(280px,1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .session-time {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-top: 0.35rem;
+      color: #d8b4fe;
+    }
+    /* Scrollbar for the full schedule */
+    .full-schedule-container {
+      max-height: 60vh;
+      overflow-y: auto;
+      margin-top: 1rem;
+      border: 1px solid #a78bfa;
+      border-radius: 12px;
+      padding: 1rem;
+      background: rgba(99, 102, 241, 0.15);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #d8b4fe;
+      font-size: 0.9rem;
+    }
+    th, td {
+      padding: 10px 12px;
+      border: 1px solid #7c3aed;
+      text-align: center;
+    }
+    th {
+      background: #7c3aed;
+      font-weight: 700;
+      color: #ede9fe;
+      text-shadow: 0 0 5px #5b21b6;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    /* Responsive for smaller devices */
+    @media (max-width: 640px) {
+      .schedule-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Horario Diario de Estudio</h1>
+    <h2>Tecnología & Diplomado - Detección Dinámica según Hora y Día (Bogotá)</h2>
+
+    <section id="today-schedule" aria-live="polite" aria-label="Horario del día actual">
+      <h3 class="text-center text-xl font-semibold mb-4" id="day-title">Cargando horario...</h3>
+      <div id="schedule-cards" class="schedule-grid" role="list" aria-describedby="day-title"></div>
+    </section>
+
+    <section class="mt-6 text-center">
+      <button id="toggle-full-schedule" class="btn-primary" aria-expanded="false" aria-controls="full-schedule-container">
+        Mostrar Horario Completo
+      </button>
+    </section>
+
+    <section id="full-schedule-container" class="full-schedule-container hidden" aria-hidden="true" tabindex="-1">
+      <h3 class="text-center text-lg font-bold mb-4">Horario Completo de la Carrera y Diplomado</h3>
+      <table aria-label="Horario completo de las asignaturas y diplomado">
+        <thead>
+          <tr>
+            <th>Asignatura / Diplomado</th>
+            <th>Docente</th>
+            <th>Día</th>
+            <th>Hora Entrada</th>
+            <th>Hora Salida</th>
+            <th>Aula</th>
+          </tr>
+        </thead>
+        <tbody id="full-schedule-body"></tbody>
+      </table>
+      <p class="mt-4 text-center text-sm text-indigo-200">Clases que ya pasaron se ocultan automáticamente.</p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      // Data of subjects and diplomado
+      // Using 24h format internally for easier comparison
+      const schedule = [
+        {
+          type: "carrera",
+          subject: "LABORATORIO FISICA ELECTRICA",
+          teacher: "RUIZ PERALTA, ALFREDO",
+          day: "lunes",
+          start: "10:45",
+          end: "12:15",
+          room: "L-Fis",
+          description: "Laboratorio teórico-práctico de física eléctrica."
+        },
+        {
+          type: "carrera",
+          subject: "CALCULO INTEGRAL",
+          teacher: "ABUABARA CORTES, RICKI",
+          day: "martes",
+          start: "07:45",
+          end: "09:15",
+          room: "B-203",
+          description: "Fundamentos y aplicaciones del cálculo integral."
+        },
+        {
+          type: "carrera",
+          subject: "CALCULO INTEGRAL",
+          teacher: "ABUABARA CORTES, RICKI",
+          day: "martes",
+          start: "09:15",
+          end: "10:00",
+          room: "B-203",
+          description: "Práctica y resolución de ejercicios."
+        },
+        {
+          type: "carrera",
+          subject: "COMPETENCIAS COMUNICATIVAS II",
+          teacher: "CORONEL MONTAGUTH, YESSY",
+          day: "martes",
+          start: "10:00",
+          end: "11:30",
+          room: "B-303",
+          description: "Desarrollo de habilidades comunicativas avanzadas."
+        },
+        {
+          type: "carrera",
+          subject: "DISENO CAD",
+          teacher: "BELTRAN LOPEZ, WILLIAM",
+          day: "martes",
+          start: "18:15",
+          end: "19:45",
+          room: "S-213",
+          description: "Diseño asistido por computadora para ingeniería."
+        },
+        {
+          type: "carrera",
+          subject: "PROGRAMACION ESTRUCTURADA",
+          teacher: "SAAVEDRA MONTES, IVAN",
+          day: "miércoles",
+          start: "07:45",
+          end: "09:15",
+          room: "S-202",
+          description: "Conceptos básicos de programación con estructuras."
+        },
+        {
+          type: "carrera",
+          subject: "FISICA ELECTRICA",
+          teacher: "RUIZ PERALTA, ALFREDO",
+          day: "miércoles",
+          start: "10:00",
+          end: "10:45",
+          room: "B-203",
+          description: "Teoría y fundamentos de física eléctrica."
+        },
+        {
+          type: "carrera",
+          subject: "FISICA ELECTRICA",
+          teacher: "RUIZ PERALTA, ALFREDO",
+          day: "miércoles",
+          start: "10:45",
+          end: "12:15",
+          room: "B-203",
+          description: "Laboratorio y ejemplos prácticos."
+        },
+        {
+          type: "carrera",
+          subject: "PROGRAMACION ESTRUCTURADA",
+          teacher: "SAAVEDRA MONTES, IVAN",
+          day: "viernes",
+          start: "07:45",
+          end: "09:15",
+          room: "S-302",
+          description: "Refuerzo y nuevos temas en programación."
+        },
+        {
+          type: "carrera",
+          subject: "INGLES II",
+          teacher: "ROMERO PEREZ, MANUEL",
+          day: "viernes",
+          start: "09:15",
+          end: "12:15",
+          room: "S-101",
+          description: "Inglés técnico y conversación."
+        },
+        {
+          type: "carrera",
+          subject: "DISENO CAD",
+          teacher: "BELTRAN LOPEZ, WILLIAM",
+          day: "sábado",
+          start: "14:30",
+          end: "16:00",
+          room: "Aula Remota",
+          description: "Diseño asistido para proyectos especiales."
+        },
+        // Diplomado entries (added combined with carrera data)
+        {
+          type: "diplomado",
+          subject: "Bootcamp de Análisis de Datos – Nivel Básico",
+          teacher: "INSTRUCTOR DIPLOMADO",
+          day: "viernes",
+          start: "14:00",
+          end: "18:30",
+          room: "S-213",
+          description: "Curso básico de análisis y manejo de datos."
+        },
+        {
+          type: "diplomado",
+          subject: "Bootcamp de Análisis de Datos – Nivel Básico",
+          teacher: "INSTRUCTOR DIPLOMADO",
+          day: "sábado",
+          start: "08:00",
+          end: "15:30",
+          room: "S-213",
+          description: "Curso básico de análisis y manejo de datos."
+        }
+      ];
+
+      // Map English days for display, index for getDay() map Mon-Sun as 1-0
+      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+      // Converts "HH:mm" string to minutes past midnight number
+      function timeToMinutes(t) {
+        const parts = t.split(':');
+        return parseInt(parts[0], 10)*60 + parseInt(parts[1], 10);
+      }
+
+      // Gets current Bogota time date object (UTC -5)
+      function getBogotaNow() {
+        const now = new Date();
+        // Get UTC time + offset -5h
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const bogotaOffset = -5 * 60; // in minutes
+        return new Date(utc + bogotaOffset * 60000);
+      }
+
+      // Return boolean if current time is between range including start, but excluding end
+      function isCurrentTimeInRange(start, end, current) {
+        const cur = current.getHours()*60 + current.getMinutes();
+        const startM = timeToMinutes(start);
+        const endM = timeToMinutes(end);
+        return cur >= startM && cur < endM;
+      }
+
+      // Return boolean if current time is after end
+      function isPast(end, current) {
+        return current.getHours()*60+current.getMinutes() >= timeToMinutes(end);
+      }
+
+      // Format 24h time "HH:mm" to 12h AM/PM: 07:45 am
+      function formatTime12h(time24) {
+        const [hStr,mStr] = time24.split(':');
+        let h = parseInt(hStr,10);
+        const m = mStr;
+        const ampm = h >= 12 ? 'pm' : 'am';
+        h = h % 12;
+        h = h ? h : 12; // hour '0' = 12
+        return `${h}:${m} ${ampm}`;
+      }
+
+      // Build schedule cards for today's classes not yet finished
+      function buildTodaySchedule() {
+        const now = getBogotaNow();
+        // Get current day in spanish lowercase
+        const today = dayNames[now.getDay()];
+        // Set day label text content capitalized
+        const dayTitle = document.getElementById('day-title');
+        dayTitle.textContent = `Horario para hoy (${today.charAt(0).toUpperCase() + today.slice(1)})`;
+
+        // Filter schedule for today and classes not finished yet:
+        // classes where current time < end time
+        const todaysClasses = schedule.filter(s => s.day === today && !isPast(s.end, now));
+
+        // Sort by start time ascending
+        todaysClasses.sort((a,b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+        // Container to render cards
+        const scheduleContainer = document.getElementById('schedule-cards');
+        scheduleContainer.innerHTML = '';
+
+        if (todaysClasses.length === 0) {
+          // No classes remaining today or none today
+          scheduleContainer.innerHTML = `
+            <div class="card text-center text-indigo-100 font-semibold">
+              No tienes clases programadas para lo que resta del día.
+            </div>
+          `;
+          return;
+        }
+
+        // For each class build a card with detailed info, show "en curso" if current time is in range
+        for (const cls of todaysClasses) {
+          const inSession = isCurrentTimeInRange(cls.start, cls.end, now);
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.setAttribute('role', 'listitem');
+          card.setAttribute('tabindex', '0');
+          // Use type to show if carrera or diplomado
+          const tipoLabel = cls.type === 'diplomado' ? 
+            `<span class="inline-block bg-purple-700 rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-100 mr-2">Diplomado</span>` :
+            `<span class="inline-block bg-blue-700 rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-indigo-100 mr-2">Carrera</span>`;
+
+          card.innerHTML = `
+            ${tipoLabel}
+            <h4 class="font-bold text-lg mb-1">${cls.subject}</h4>
+            <p><strong>Docente:</strong> ${cls.teacher}</p>
+            <p><strong>Aula:</strong> ${cls.room}</p>
+            <p class="session-time"><strong>Horario:</strong> ${formatTime12h(cls.start)} - ${formatTime12h(cls.end)}</p>
+            <p class="mt-2 italic text-indigo-200">${cls.description}</p>
+            ${inSession ? `<p class="mt-3 font-semibold text-green-400">Clase en curso</p>` : ''}
+            <div class="robot-figure" aria-hidden="true">
+              <div class="robot-eye"></div>
+            </div>
+          `;
+          scheduleContainer.appendChild(card);
+        }
+      }
+
+      // Build full schedule table dynamically and hide past classes (based on current time/day)
+      function buildFullSchedule() {
+        const now = getBogotaNow();
+        const tbody = document.getElementById('full-schedule-body');
+        tbody.innerHTML = '';
+
+        // Sort schedule by day index then start time
+        function dayIndex(day) {
+          return dayNames.indexOf(day);
+        }
+        const sortedSchedule = [...schedule].sort((a,b) => {
+          if(dayIndex(a.day) !== dayIndex(b.day)) return dayIndex(a.day) - dayIndex(b.day);
+          return timeToMinutes(a.start) - timeToMinutes(b.start);
+        });
+
+        for (const cls of sortedSchedule) {
+          // Skip classes that already finished in the past relative to now (only for today)
+          if (dayIndex(cls.day) < dayIndex(dayNames[now.getDay()])) continue;
+          if (dayIndex(cls.day) === dayIndex(dayNames[now.getDay()]) && isPast(cls.end, now)) continue;
+
+          const tr = document.createElement('tr');
+          const typeIcon = cls.type === 'diplomado' 
+            ? '🎓' 
+            : '📚'; 
+          tr.innerHTML = `
+            <td>${cls.subject} ${cls.type === 'diplomado' ? '(Diplomado)' : ''}</td>
+            <td>${cls.teacher}</td>
+            <td>${cls.day.charAt(0).toUpperCase() + cls.day.slice(1)}</td>
+            <td>${formatTime12h(cls.start)}</td>
+            <td>${formatTime12h(cls.end)}</td>
+            <td>${cls.room}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+
+      // Toggle the full schedule visibility with button and update aria attributes
+      function setupToggleButton() {
+        const btn = document.getElementById('toggle-full-schedule');
+        const container = document.getElementById('full-schedule-container');
+        btn.addEventListener('click', () => {
+          if (container.classList.contains('hidden')) {
+            container.classList.remove('hidden');
+            container.setAttribute('aria-hidden', 'false');
+            btn.setAttribute('aria-expanded', 'true');
+            btn.textContent = 'Ocultar Horario Completo';
+            container.focus();
+          } else {
+            container.classList.add('hidden');
+            container.setAttribute('aria-hidden', 'true');
+            btn.setAttribute('aria-expanded', 'false');
+            btn.textContent = 'Mostrar Horario Completo';
+            btn.focus();
+          }
+        });
+      }
+
+      // Initial load
+      function init() {
+        buildTodaySchedule();
+        buildFullSchedule();
+        setupToggleButton();
+
+        // Refresh every 1 minute to update schedule dynamically (hide past classes, etc)
+        setInterval(() => {
+          buildTodaySchedule();
+          buildFullSchedule();
+        }, 60000);
+      }
+
+      // Start after DOM loaded
+      document.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>
